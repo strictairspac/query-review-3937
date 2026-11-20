@@ -23,12 +23,29 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+  ledger-db:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-query-review}-ledger
+    environment:
+      POSTGRES_DB: settlement_ledger
+      POSTGRES_USER: ledger
+      POSTGRES_PASSWORD: ${LEDGER_POSTGRES_PASSWORD:-local_ledger_4101}
+    ports: ["${LEDGER_DB_PORT:-17840}:5432"]
+    volumes: ["ledger-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledger -d settlement_ledger"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
   backend:
     build: ./backend
     container_name: ${COMPOSE_PROJECT_NAME:-query-review}-backend
     environment: &app-env
       DATABASE_URL: postgresql+psycopg2://app:${POSTGRES_PASSWORD:-local_demo_4101}@db/query_review
       REDIS_URL: redis://redis:6379/0
+      LEDGER_DATABASE_URL: postgresql+psycopg2://ledger:${LEDGER_POSTGRES_PASSWORD:-local_ledger_4101}@ledger-db/settlement_ledger
+      LEDGER_RETRY_SECONDS: ${LEDGER_RETRY_SECONDS:-5}
+      LEDGER_MAX_BACKOFF_SECONDS: ${LEDGER_MAX_BACKOFF_SECONDS:-60}
       JWT_SECRET: ${JWT_SECRET:-local-demo-query-review-change-before-production-20261117}
       SEED_DEMO: ${SEED_DEMO:-true}
     ports: ["${BACKEND_PORT:-19240}:8000"]
@@ -36,6 +53,7 @@ services:
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_healthy}
+      ledger-db: {condition: service_healthy}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 3s
@@ -70,4 +88,5 @@ services:
 volumes:
   db-data:
   redis-data:
+  ledger-data:
   artifacts:

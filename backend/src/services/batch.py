@@ -6,7 +6,7 @@ from ..models.batch import Batch
 from ..models.sample import Sample
 from .query_engine import validate_sql
 queue=Redis.from_url(REDIS_URL)
-def serialize(x):return {'id':x.id,'name':x.name,'sample_id':x.sample_id,'candidate_sql':x.candidate_sql,'status':x.status,'created_at':str(x.created_at)}
+def serialize(x):return {'id':x.id,'name':x.name,'sample_id':x.sample_id,'candidate_sql':x.candidate_sql,'status':x.status,'review_sequence':x.review_sequence,'created_at':str(x.created_at)}
 def list_batches(db):return [serialize(x) for x in db.scalars(select(Batch).order_by(Batch.id.desc()))]
 def create_batch(db,data):
     validate_sql(data.candidate_sql)

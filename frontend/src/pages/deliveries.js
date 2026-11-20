@@ -1,0 +1,9 @@
+import{deliveries}from'../stores/delivery.js';import{session}from'../stores/session.js';import{header}from'../components/common/header.js';import{table}from'../components/common/table.js';import{deliveryBadge}from'../components/common/deliveryBadge.js';import{esc}from'../utils/html.js';
+const when=x=>x?esc(x):'—';
+export async function deliveriesPage(el){const rows=await deliveries.load();const write=session.get().role!=='viewer';
+const pending=rows.filter(x=>x.status==='pending').length,active=rows.filter(x=>x.status==='active').length,superseded=rows.filter(x=>x.status==='superseded').length;
+el.innerHTML=header('05','把复核通过的清单整批送入账务库','只接受复核结果一致、且带唯一账单号与应付金额的清单。送账任务先落入本地待送队列，账务库断开时复核与待送都不受影响，恢复后自动续送。')+
+`<div class="panel"><div class="metrics"><div><small>待送 / 重试中</small><strong>${pending}</strong></div><div><small>已生效</small><strong>${active}</strong></div><div><small>被新批次替代</small><strong>${superseded}</strong></div><div><small>累计任务</small><strong>${rows.length}</strong></div></div>`+
+(write?'<div class="actions" style="margin-top:0"><button id="refresh">刷新送账状态</button><span class="muted">在“运行历史”或“证据详情”对复核通过的批次发起送账。</span></div>':'<p class="helper">观察员可查看送账状态，不可发起送账。</p>')+'</div>'+
+`<section class="panel"><h2>送账任务</h2>${table(['批次 / 账期','清单规模','应付合计','送账状态','账务库回执 / 下次重试','最近错误'],rows.map(x=>['<span class="mono">#'+x.batch_id+'</span> '+esc(x.batch_name||'')+'<br><small>受理序 '+x.version+' · 账期 '+esc(x.period||'未指定')+'</small>',x.row_count+' 行',esc(x.total_amount),deliveryBadge(x.status),x.ledger_received_at?when(x.ledger_received_at):(x.next_attempt_at?'下次重试 '+when(x.next_attempt_at):'—'),x.last_error?'<span class="error">'+esc(x.last_error).slice(0,160)+'</span>':'—'])}+'<p class="helper">“已生效”表示该清单是当前样本口径下最新受理的版本；“已被新批次替代”表示同一口径已有受理更晚的清单生效。旧清单即使晚到也不会覆盖新版本。新旧以批次受理顺序（review_sequence）判定，而不是到达时间或客户端时钟。</p></section>`;
+const r=el.querySelector('#refresh');if(r)r.onclick=()=>deliveriesPage(el)}
